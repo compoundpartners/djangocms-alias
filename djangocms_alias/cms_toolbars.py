@@ -233,7 +233,7 @@ class AliasToolbar(CMSToolbar):
                 add_url = admin_reverse('djangocms_alias_aliascontent_add')
 
                 for code, name in add:
-                    url = add_url_parameters(add_url, language=code, alias=alias_content.alias_id)
+                    url = add_url_parameters(add_url, language=code, alias_id=alias_content.alias_id)
                     add_plugins_menu.add_modal_item(name, url=url)
 
             if remove:

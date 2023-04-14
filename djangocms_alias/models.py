@@ -19,6 +19,9 @@ from cms.utils.urlutils import admin_reverse
 
 from parler.models import TranslatableModel, TranslatedFields
 
+from jumpsuite.models import ContentBaseMixin, GrouperBaseMixin
+from jumpsuite.managers import BaseContentManager, BaseGrouperManager
+
 from .constants import CHANGE_CATEGORY_URL_NAME
 from .utils import is_versioning_enabled
 
@@ -69,7 +72,7 @@ class Category(TranslatableModel):
         return admin_reverse(CHANGE_CATEGORY_URL_NAME, args=[self.pk])
 
 
-class Alias(models.Model):
+class Alias(GrouperBaseMixin, models.Model):
     CREATION_BY_TEMPLATE = 'template'
     CREATION_BY_CODE = 'code'
     CREATION_METHODS = (
@@ -98,6 +101,8 @@ class Alias(models.Model):
         help_text=_('To render the alias in templates.')
     )
     site = models.ForeignKey(Site, on_delete=models.CASCADE, null=True, blank=True)
+
+    objects = BaseGrouperManager()
 
     class Meta:
         verbose_name = _('alias')
@@ -259,7 +264,7 @@ class Alias(models.Model):
         self.category.aliases.filter(*filters).update(position=op(F('position'), 1))  # noqa: E501
 
 
-class AliasContent(models.Model):
+class AliasContent(ContentBaseMixin, models.Model):
     alias = models.ForeignKey(
         Alias,
         on_delete=models.CASCADE,
@@ -276,6 +281,8 @@ class AliasContent(models.Model):
         choices=settings.LANGUAGES,
         default=get_current_language,
     )
+
+    objects = BaseContentManager()
 
     class Meta:
         verbose_name = _('alias content')

@@ -2,6 +2,7 @@ from django.apps import apps
 from django.conf import settings
 
 from cms.app_base import CMSAppConfig
+from jumpsuite.admin import JumpsuiteAdminMixin
 
 from .models import AliasContent, AliasPlugin, copy_alias_content
 from .rendering import render_alias_content
@@ -45,6 +46,7 @@ class AliasCMSConfig(CMSAppConfig):
                 version_list_filter_lookups={"language": get_language_tuple},
                 copy_function=copy_alias_content,
                 grouper_selector_option_label=lambda obj, lang: obj.get_name(lang),
+                content_admin_mixin=JumpsuiteAdminMixin,
             ),
         ]
 

@@ -132,6 +132,8 @@ class AliasContentAdmin(*alias_content_admin_classes):
     def has_add_permission(self, request, obj=None):
         # FIXME: It is not currently possible to add an alias from the django admin changelist issue #97
         # https://github.com/django-cms/djangocms-alias/issues/97
+        if 'alias_id' in request.GET:
+            return True
         return False
 
     def save_model(self, request, obj, form, change):
