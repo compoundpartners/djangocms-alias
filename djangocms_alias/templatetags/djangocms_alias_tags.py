@@ -49,6 +49,7 @@ def render_alias(context, instance, editable=False):
             placeholder=source,
             context=context,
             editable=editable,
+            use_cache=True
         )
         return content or ''
     return ''
@@ -168,6 +169,7 @@ class StaticAlias(Tag):
                 placeholder=placeholder,
                 context=context,
                 nodelist=nodelist,
+                use_cache=not get_draft_content,
             )
             return content
         return ''
