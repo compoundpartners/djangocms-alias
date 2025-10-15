@@ -1,4 +1,3 @@
-from cms.app_base import CMSAppConfig
 from django.apps import apps
 from django.conf import settings
 
@@ -8,13 +7,19 @@ from jumpsuite.admin import JumpsuiteAdminMixin
 from .models import AliasContent, AliasPlugin, copy_alias_content
 from .rendering import render_alias_content
 
+
 try:
-    apps.get_app_config("djangocms_internalsearch")
+    apps.get_app_config('djangocms_internalsearch')
     from .internal_search import AliasContentConfig
 except (ImportError, LookupError):
     AliasContentConfig = None
 
-djangocms_versioning_installed = apps.is_installed("djangocms_versioning")
+try:
+    from djangocms_versioning.constants import DRAFT  # NOQA
+
+    djangocms_versioning_installed = True
+except ImportError:
+    djangocms_versioning_installed = False
 
 
 class AliasCMSConfig(CMSAppConfig):
@@ -23,21 +28,20 @@ class AliasCMSConfig(CMSAppConfig):
     moderated_models = [AliasContent]
 
     djangocms_moderation_enabled = getattr(
-        settings, "MODERATING_ALIAS_MODELS_ENABLED", True
-    )
-    djangocms_versioning_enabled = (
-        getattr(settings, "VERSIONING_ALIAS_MODELS_ENABLED", True)
-        and djangocms_versioning_installed
-    )
+        settings, 'MODERATING_ALIAS_MODELS_ENABLED', True)
+    djangocms_versioning_enabled = getattr(
+        settings, 'VERSIONING_ALIAS_MODELS_ENABLED', True)
 
-    if djangocms_versioning_enabled:
+    if djangocms_versioning_enabled and djangocms_versioning_installed:
+
         from cms.utils.i18n import get_language_tuple
+
         from djangocms_versioning.datastructures import VersionableItem
 
         versioning = [
             VersionableItem(
                 content_model=AliasContent,
-                grouper_field_name="alias",
+                grouper_field_name='alias',
                 extra_grouping_fields=["language"],
                 version_list_filter_lookups={"language": get_language_tuple},
                 copy_function=copy_alias_content,
@@ -47,10 +51,9 @@ class AliasCMSConfig(CMSAppConfig):
         ]
 
     djangocms_references_enabled = getattr(
-        settings, "REFERENCES_ALIAS_MODELS_ENABLED", True
-    )
+        settings, 'REFERENCES_ALIAS_MODELS_ENABLED', True)
     reference_fields = [
-        (AliasPlugin, "alias"),
+        (AliasPlugin, 'alias'),
     ]
 
     # Internalsearch configuration

@@ -1,6 +1,7 @@
-from cms.api import add_plugin
 from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
+
+from cms.api import add_plugin
 
 from djangocms_alias.cms_plugins import Alias
 from djangocms_alias.models import Alias as AliasModel
@@ -10,6 +11,7 @@ from .base import BaseAliasPluginTestCase
 
 
 class AliasPermissionsTestCase(BaseAliasPluginTestCase):
+
     def test_can_create_alias_superuser(self):
         self.assertTrue(
             Alias.can_create_alias(
@@ -41,7 +43,7 @@ class AliasPermissionsTestCase(BaseAliasPluginTestCase):
                 content_type=ContentType.objects.get_for_model(
                     AliasModel,
                 ),
-                codename="add_alias",
+                codename='add_alias',
             )
         )
         user.user_permissions.add(
@@ -49,7 +51,7 @@ class AliasPermissionsTestCase(BaseAliasPluginTestCase):
                 content_type=ContentType.objects.get_for_model(
                     Alias.model,
                 ),
-                codename="add_aliasplugin",
+                codename='add_aliasplugin',
             )
         )
         alias = self._create_alias(self.placeholder.get_plugins())
@@ -73,7 +75,7 @@ class AliasPermissionsTestCase(BaseAliasPluginTestCase):
                 content_type=ContentType.objects.get_for_model(
                     AliasModel,
                 ),
-                codename="add_alias",
+                codename='add_alias',
             )
         )
         self.assertTrue(

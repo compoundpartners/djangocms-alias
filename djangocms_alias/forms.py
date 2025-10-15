@@ -1,10 +1,3 @@
-from cms.models import CMSPlugin, Placeholder
-from cms.utils import get_current_site
-from cms.utils.permissions import (
-    get_model_permission_codename,
-    has_plugin_permission,
-)
-from cms.utils.urlutils import admin_reverse
 from django import forms
 from django.contrib import admin
 from django.contrib.admin.widgets import (
@@ -14,50 +7,52 @@ from django.contrib.admin.widgets import (
 from django.contrib.sites.models import Site
 from django.db import transaction
 from django.utils.translation import gettext_lazy as _
+
+from cms.models import CMSPlugin, Placeholder
+from cms.utils import get_current_site
+from cms.utils.permissions import (
+    get_model_permission_codename,
+    has_plugin_permission,
+)
+from cms.utils.urlutils import admin_reverse
+
 from parler.forms import TranslatableModelForm
 
 from .constants import CATEGORY_SELECT2_URL_NAME, SELECT2_ALIAS_URL_NAME
-from .models import (
-    Alias,
-    AliasContent,
-    AliasPlugin,
-    Category,
-)
-from .models import (
-    Alias as AliasModel,
-)
+from .models import Alias as AliasModel, AliasContent, AliasPlugin, Category
 from .utils import emit_content_change, is_versioning_enabled
 
+
 __all__ = [
-    "AliasPluginForm",
-    "BaseCreateAliasForm",
-    "CreateAliasForm",
-    "CreateAliasWizardForm",
-    "CreateCategoryWizardForm",
+    'AliasPluginForm',
+    'BaseCreateAliasForm',
+    'CreateAliasForm',
+    'CreateAliasWizardForm',
+    'CreateCategoryWizardForm',
 ]
 
 
 def get_category_widget(formfield, user):
-    dbfield = AliasModel._meta.get_field("category")
+    dbfield = AliasModel._meta.get_field('category')
     return RelatedFieldWidgetWrapper(
         formfield.widget,
         dbfield.remote_field,
         admin_site=admin.site,
         can_add_related=user.has_perm(
-            get_model_permission_codename(Category, "add"),
+            get_model_permission_codename(Category, 'add'),
         ),
         can_change_related=user.has_perm(
-            get_model_permission_codename(Category, "change"),
+            get_model_permission_codename(Category, 'change'),
         ),
         can_delete_related=user.has_perm(
-            get_model_permission_codename(Category, "delete"),
+            get_model_permission_codename(Category, 'delete'),
         ),
     )
 
 
 class BaseCreateAliasForm(forms.Form):
     plugin = forms.ModelChoiceField(
-        queryset=CMSPlugin.objects.exclude(plugin_type="Alias"),
+        queryset=CMSPlugin.objects.exclude(plugin_type='Alias'),
         required=False,
         widget=forms.HiddenInput(),
     )
@@ -71,19 +66,19 @@ class BaseCreateAliasForm(forms.Form):
     def clean(self):
         cleaned_data = super().clean()
 
-        plugin = cleaned_data.get("plugin")
-        placeholder = cleaned_data.get("placeholder")
+        plugin = cleaned_data.get('plugin')
+        placeholder = cleaned_data.get('placeholder')
 
         if not plugin and not placeholder:
             raise forms.ValidationError(
-                _("A plugin or placeholder is required to create an alias.")
+                _('A plugin or placeholder is required to create an alias.')
             )
 
         if plugin and placeholder:
             raise forms.ValidationError(
                 _(
-                    "An alias can only be created from a plugin or placeholder, "  # noqa: E501
-                    "not both."
+                    'An alias can only be created from a plugin or placeholder, '  # noqa: E501
+                    'not both.'
                 )
             )
 
@@ -101,18 +96,18 @@ class CreateAliasForm(BaseCreateAliasForm):
         required=True,
     )
     replace = forms.BooleanField(
-        label=_("Replace current plugin"),
-        help_text=_("Replace current plugin with alias"),
+        label=_('Replace current plugin'),
+        help_text=_('Replace current plugin with alias'),
         required=False,
     )
 
     def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop("user")
+        self.user = kwargs.pop('user')
 
         super().__init__(*args, **kwargs)
 
-        if not has_plugin_permission(self.user, "Alias", "add"):
-            self.fields["replace"].widget = forms.HiddenInput()
+        if not has_plugin_permission(self.user, 'Alias', 'add'):
+            self.fields['replace'].widget = forms.HiddenInput()
 
         self.set_category_widget(self.user)
         self.fields["site"].initial = get_current_site()
@@ -121,27 +116,27 @@ class CreateAliasForm(BaseCreateAliasForm):
         cleaned_data = super().clean()
 
         if AliasContent.objects.filter(
-            name=cleaned_data.get("name"),
-            language=cleaned_data.get("language"),
-            alias__category=cleaned_data.get("category"),
+            name=cleaned_data.get('name'),
+            language=cleaned_data.get('language'),
+            alias__category=cleaned_data.get('category'),
         ).exists():
             raise forms.ValidationError(
-                _("Alias with this Name and Category already exists.")
+                _('Alias with this Name and Category already exists.')
             )
 
         return cleaned_data
 
     def set_category_widget(self, user):
-        formfield = self.fields["category"]
+        formfield = self.fields['category']
         formfield.widget = get_category_widget(formfield, user)
 
     def get_plugins(self):
-        plugin = self.cleaned_data.get("plugin")
-        placeholder = self.cleaned_data.get("placeholder")
+        plugin = self.cleaned_data.get('plugin')
+        placeholder = self.cleaned_data.get('placeholder')
 
         if placeholder:
             plugins = placeholder.get_plugins(
-                self.cleaned_data.get("language"),
+                self.cleaned_data.get('language'),
             )
         else:
             plugins = [plugin] + list(plugin.get_descendants())
@@ -149,21 +144,20 @@ class CreateAliasForm(BaseCreateAliasForm):
 
     def save(self):
         alias = AliasModel.objects.create(
-            category=self.cleaned_data.get("category"),
-            site=self.cleaned_data.get("site"),
+            category=self.cleaned_data.get('category'),
+            site=self.cleaned_data.get('site'),
         )
         alias_content = AliasContent.objects.create(
             alias=alias,
-            name=self.cleaned_data.get("name"),
-            language=self.cleaned_data.get("language"),
+            name=self.cleaned_data.get('name'),
+            language=self.cleaned_data.get('language'),
         )
         if is_versioning_enabled():
             from djangocms_versioning.models import Version
-
             Version.objects.create(content=alias_content, created_by=self.user)
-        if self.cleaned_data.get("replace"):
-            placeholder = self.cleaned_data.get("placeholder")
-            plugin = self.cleaned_data.get("plugin")
+        if self.cleaned_data.get('replace'):
+            placeholder = self.cleaned_data.get('placeholder')
+            plugin = self.cleaned_data.get('plugin')
             source_plugins = None
         else:
             placeholder, plugin = None, None
@@ -178,7 +172,9 @@ class CreateAliasForm(BaseCreateAliasForm):
 
 class CreateAliasWizardForm(forms.Form):
     name = forms.CharField(
-        label=_("Name"), required=True, widget=AdminTextInputWidget()
+        label=_('Name'),
+        required=True,
+        widget=AdminTextInputWidget()
     )
     site = forms.ModelChoiceField(
         queryset=Site.objects.all(),
@@ -191,31 +187,29 @@ class CreateAliasWizardForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if not getattr(self, "user", None):
+        if not getattr(self, 'user', None):
             self.user = self._request.user
         self.set_category_widget(self.user)
         self.fields["site"].initial = get_current_site()
 
     def set_category_widget(self, user):
-        formfield = self.fields["category"]
+        formfield = self.fields['category']
         formfield.widget = get_category_widget(formfield, user)
 
     @transaction.atomic
     def save(self):
         alias = AliasModel.objects.create(
-            category=self.cleaned_data.get("category"),
-            site=self.cleaned_data.get("site"),
+            category=self.cleaned_data.get('category'),
+            site=self.cleaned_data.get('site'),
         )
-        alias_content = AliasContent(
+        alias_content = AliasContent.objects.create(
             alias=alias,
-            name=self.cleaned_data.get("name"),
+            name=self.cleaned_data.get('name'),
             language=self.language_code,
         )
-        alias_content.save()  # Does not create a Version object
 
         if is_versioning_enabled():
             from djangocms_versioning.models import Version
-
             Version.objects.create(content=alias_content, created_by=self._request.user)
 
         emit_content_change([alias_content])
@@ -223,24 +217,30 @@ class CreateAliasWizardForm(forms.Form):
 
 
 class CreateCategoryWizardForm(TranslatableModelForm):
+
     class Meta:
         model = Category
         fields = [
-            "name",
+            'name',
         ]
 
 
 class Select2Mixin:
+
     class Media:
         css = {
-            "all": ("cms/js/select2/select2.css",),
+            'all': ('cms/js/select2/select2.css', ),
         }
         js = (
-            "admin/js/jquery.init.js",
-            "cms/js/select2/select2.js",
-            "djangocms_alias/js/dist/bundle.alias.create.min.js",
-            "djangocms_alias/js/alias_plugin.js",
+            'admin/js/jquery.init.js',
+            'cms/js/select2/select2.js',
+            'djangocms_alias/js/dist/bundle.alias.create.min.js',
+            'djangocms_alias/js/alias_plugin.js',
         )
+
+
+class SiteSelectWidget(Select2Mixin, forms.Select):
+    pass
 
 
 class CategorySelectWidget(Select2Mixin, forms.TextInput):
@@ -249,17 +249,18 @@ class CategorySelectWidget(Select2Mixin, forms.TextInput):
 
     def build_attrs(self, *args, **kwargs):
         attrs = super().build_attrs(*args, **kwargs)
-        attrs.setdefault("data-select2-url", self.get_url())
+        attrs.setdefault('data-select2-url', self.get_url())
         return attrs
 
 
 class AliasSelectWidget(Select2Mixin, forms.TextInput):
+
     def get_url(self):
         return admin_reverse(SELECT2_ALIAS_URL_NAME)
 
     def build_attrs(self, *args, **kwargs):
         attrs = super().build_attrs(*args, **kwargs)
-        attrs.setdefault("data-select2-url", self.get_url())
+        attrs.setdefault('data-select2-url', self.get_url())
         return attrs
 
 
@@ -267,29 +268,31 @@ class AliasPluginForm(forms.ModelForm):
     site = forms.ModelChoiceField(
         label=_("Site"),
         queryset=Site.objects.all(),
-        widget=forms.HiddenInput,
+        widget=SiteSelectWidget(
+            attrs={
+                "data-placeholder": _("Select site to restrict the list of aliases below"),
+            }
+        ),
         required=False,
     )
 
     category = forms.ModelChoiceField(
-        label=_("Category"),
+        label=_('Category'),
         queryset=Category.objects.all(),
         widget=CategorySelectWidget(
             attrs={
-                "data-placeholder": _(
-                    "Select category to restrict the list of aliases below"
-                ),  # noqa: E501
+                'data-placeholder': _('Select category to restrict the list of aliases below'),  # noqa: E501
             },
         ),
-        empty_label="",
+        empty_label='',
         required=False,
     )
     alias = forms.ModelChoiceField(
-        label=_("Alias"),
+        label=_('Alias'),
         queryset=AliasModel.objects.all(),
         widget=AliasSelectWidget(
             attrs={
-                "data-placeholder": _("Select an alias"),
+                'data-placeholder': _('Select an alias'),
             },
         ),
     )
@@ -300,42 +303,55 @@ class AliasPluginForm(forms.ModelForm):
 
     def _set_category_widget_value(self):
         """
-        When the user loads the form the site and category should be pre-selected
+        When the user loads the form the site and category should be pre selected
         """
         # If the form is changing an existing Alias
         # Be sure to show the values for an Alias
         if self.instance and self.instance.pk:
-            self.fields["category"].initial = self.instance.alias.category
+            self.fields['site'].initial = self.instance.alias.site
+            self.fields['category'].initial = self.instance.alias.category
         # Otherwise this is creation
         # Set the site to the current site by default
         else:
-            pass
-        self.fields["site"].initial = get_current_site()
+            self.fields['site'].initial = get_current_site()
 
     class Meta:
         model = AliasPlugin
         fields = (
-            "site",
-            "category",
-            "alias",
-            "template",
+            'site',
+            'category',
+            'alias',
+            'template',
         )
 
 
-class AliasGrouperAdminForm(forms.ModelForm):
+class AliasContentForm(forms.ModelForm):
+
+    alias = forms.ModelChoiceField(
+        queryset=AliasModel.objects.all(),
+        required=True,
+        widget=forms.HiddenInput(),
+    )
+    language = forms.CharField(widget=forms.HiddenInput())
+
     class Meta:
-        model = Alias
-        fields = "__all__"
+        model = AliasContent
+        fields = ('name',)
 
     def clean(self):
         cleaned_data = super().clean()
-        if AliasContent.admin_manager.filter(
-            name=cleaned_data.get("name"),
-            language=cleaned_data.get("language"),
-            alias__category=cleaned_data.get("category"),
+
+        alias = cleaned_data.get('alias')
+        if not alias:
+            return cleaned_data
+
+        if AliasContent.objects.filter(
+            name=cleaned_data.get('name'),
+            language=cleaned_data.get('language'),
+            alias__category=alias.category,
         ).exists():
             raise forms.ValidationError(
-                _("Alias with this Name and Category already exists.")
+                _('Alias with this Name and Category already exists.')
             )
 
         return cleaned_data
